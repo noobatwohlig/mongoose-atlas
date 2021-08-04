@@ -5,6 +5,7 @@ var app = express();
 var port = 3000;
 
 app.use(logger("dev"));
+app.use(express.json());
 
 app.use("/product", productController);
 
