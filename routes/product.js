@@ -1,8 +1,7 @@
 var express = require("express");
 var router = express.Router();
-var amazonService = require('../services/amazon.service');
-var productService = require('../services/product.service');
 var productModel = require('../models/product.model');
+var amazonModel = require("../models/amazon.model");
 var mongoose = require('../configs/db.config');
 
 router.get("/", (req, res) => {
@@ -18,31 +17,31 @@ router.post("/", async (req, res) => {
   session.startTransaction();
 
   try {
-    await productService.addProduct(
-      req.body.name,
-      req.body.price,
-      req.body.vendor
-    );
+    await productModel.create([{
+      name: req.body.name,
+      price: req.body.price,
+      vendor: req.body.vendor
+    }], { session: session });
 
     /**
      * Uncomment Below To 
      * Generating Error Intensionally to check rolling back 1st insertion or not
      */
 
-    throw new Error('I will stop from saving 2nd product');
+    //throw new Error('I will stop from saving 2nd product');
 
-    await amazonService.addProduct(
-      req.body.name,
-      req.body.price,
-      req.body.vendor
-    );
+    await amazonModel.create([{
+      name: req.body.name,
+      price: req.body.price,
+      vendor: req.body.vendor
+    }], { session: session });
 
     await session.commitTransaction();
     session.endSession();
     res.json({ 'message': "Added Product succesfully in both" });
 
   } catch (err) {
-    session.abortTransaction();
+    await session.abortTransaction();
     session.endSession();
     res.json({ "message": "Transaction Aborted due to Failure, rolling back..." + err });
   }
