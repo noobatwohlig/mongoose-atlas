@@ -3,7 +3,7 @@ var router = express.Router();
 var amazonService = require('../services/amazon.service');
 var productService = require('../services/product.service');
 var productModel = require('../models/product.model');
-var monooose = require('../configs/db.config');
+var mongoose = require('../configs/db.config');
 
 router.get("/", (req, res) => {
   productModel.find({}, (err, results) => {
@@ -12,16 +12,13 @@ router.get("/", (req, res) => {
   });
 });
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
 
-  let session = null;
+  let session = await mongoose.startSession({ new: true });
+  session.startTransaction();
 
-  monooose.startSession().then(db => {
-
-    session = db;
-    session.startTransaction();
-
-    productService.addProduct(
+  try {
+    await productService.addProduct(
       req.body.name,
       req.body.price,
       req.body.vendor
@@ -34,21 +31,21 @@ router.post("/", (req, res) => {
 
     throw new Error('I will stop from saving 2nd product');
 
-    amazonService.addProduct(
+    await amazonService.addProduct(
       req.body.name,
       req.body.price,
       req.body.vendor
     );
 
-    session.commitTransaction();
+    await session.commitTransaction();
+    session.endSession();
     res.json({ 'message': "Added Product succesfully in both" });
 
-  }).catch(err => {
+  } catch (err) {
     session.abortTransaction();
-    res.json({ "message": "Transaction Aborted due to Failure, rolling back..." + err });
-  }).finally(() => {
     session.endSession();
-  });
+    res.json({ "message": "Transaction Aborted due to Failure, rolling back..." + err });
+  }
 });
 
 router.put("/", (req, res) => {
